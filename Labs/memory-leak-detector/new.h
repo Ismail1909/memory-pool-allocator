@@ -4,9 +4,10 @@
 #include <malloc.h>
 #include <unordered_set>
 #include <memory>
+#include <ostream>
 
 struct malloc_struct {
-	malloc_struct(void* paddr, size_t bytes, bool is_array, const char* file = " ", const char* func = " ", int line = -1) :
+	malloc_struct(void* paddr = nullptr, size_t bytes = 0, bool is_array = false, const char* file = " ", const char* func = " ", int line = -1) :
 		m_paddr{ paddr }, m_bytes{ bytes }, m_is_array{ is_array }, m_file{ file }, m_func{ func }, m_line{ line } {
 	}
 	void* m_paddr;
@@ -15,7 +16,18 @@ struct malloc_struct {
 	const char* m_func;
 	int	  m_line;
 	bool  m_is_array;
+
+	bool operator == (const malloc_struct& obj) const {
+		return (this->m_paddr == obj.m_paddr);
+	}
+
 };
+
+std::ostream& operator <<(std::ostream& os, const malloc_struct& entry) {
+	os << "Heap Entry >> Address: " << entry.m_paddr << " Bytes: " << entry.m_bytes << " At File: " << entry.m_file
+		<< " Line: " << entry.m_file << " Function: " << entry.m_func;
+	return os;
+}
 
 struct malloc_hash : std::hash<void *> {
 	size_t operator()(const malloc_struct& p) const {
@@ -37,9 +49,11 @@ struct malloc_allocator_t : std::allocator<T> {
 	}
 };
 
-std::unordered_set<malloc_struct, malloc_hash, std::equal_to<malloc_hash>,malloc_allocator_t<malloc_struct>> heap_entry_set;
+std::unordered_set<malloc_struct, malloc_hash, std::equal_to<malloc_struct>,malloc_allocator_t<malloc_struct>> heap_entry_set;
 
-void* operator new(size_t size) {
+std::vector<malloc_struct, malloc_allocator_t<malloc_struct>> memory_alloc_mismatch;
+
+void* operator_new(size_t size, malloc_struct& entry) {
 	std::cout << "new operator called" << std::endl;
 	if (size <= 0) {
 		throw std::bad_alloc();
@@ -49,33 +63,49 @@ void* operator new(size_t size) {
 	if (!p) {
 		throw std::bad_alloc();
 	}
-
+	entry.m_paddr = p;
+	heap_entry_set.insert(entry);
 	return p;
 }
 
 void* operator new(size_t size, const char* file, int line, const char* func) {
 	std::cout << "new operator called at " << file << " Line: " << line << " at Function: " << func << std::endl;
-	return ::operator new(size);
+	malloc_struct entry{ nullptr,size,false,file,func,line };
+	return operator_new(size,entry);
 }
 
-void* operator new [](size_t size) {
-	std::cout << "new [] operator called" << std::endl;
-	void* p = (void*)std::malloc(size);
-	if (!p) {
-		throw std::bad_alloc();
-	}
+void* operator new[](size_t size, const char* file, int line, const char* func) {
+	std::cout << "new [] operator called at " << file << " Line: " << line << " at Function: " << func << std::endl;
+	malloc_struct entry{ nullptr,size,true,file,func,line };
+	return operator_new(size, entry);
+}
 
-	return p;
+void operator_delete(void* p, bool is_array) {
+	auto it = heap_entry_set.find(p);
+	if (it != heap_entry_set.end()) {
+		if (it->m_is_array != is_array) {
+			memory_alloc_mismatch.push_back(*it);
+		}
+		heap_entry_set.erase(it);
+	}
+	std::free(p);
 }
 
 void operator delete(void* p) {
 	std::cout << "delete operator called" << std::endl;
-	std::free(p);
+	operator_delete(p, false);
 }
 
 void operator delete [](void* p) {
 	std::cout << "delete [] operator called" << std::endl;
-	std::free(p);
+	operator_delete(p, true);
+}
+
+void trace_memory_leaks() {
+	std::cout << "Memory leaks detected for: " << std::endl;
+	for (auto &entry : heap_entry_set) {
+		std::cout << entry << std::endl;
+	}
 }
 
 #define new new(__FILE__, __LINE__, __FUNCSIG__)
