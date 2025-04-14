@@ -24,8 +24,8 @@ struct malloc_struct {
 };
 
 std::ostream& operator <<(std::ostream& os, const malloc_struct& entry) {
-	os << "Heap Entry >> Address: " << entry.m_paddr << " Bytes: " << entry.m_bytes << " At File: " << entry.m_file
-		<< " Line: " << entry.m_file << " Function: " << entry.m_func;
+	os << "Heap Entry >> Address: " << entry.m_paddr << " | Bytes: " << entry.m_bytes << " At File: " << entry.m_file
+		<< " | Line: " << entry.m_line << " | Function: " << entry.m_func;
 	return os;
 }
 
@@ -37,8 +37,14 @@ struct malloc_hash : std::hash<void *> {
 
 template<typename T>
 struct malloc_allocator_t : std::allocator<T> {
+
+	malloc_allocator_t() = default;
+
+	template<class U>
+	malloc_allocator_t(const malloc_allocator_t<U>&) noexcept {}
+
 	T* allocate(std::size_t n) {
-		T* p = (T*)std::malloc(n);
+		T* p = (T*)std::malloc(n * sizeof(T));
 		if (!p) throw std::bad_alloc();
 
 		return p;
@@ -47,6 +53,9 @@ struct malloc_allocator_t : std::allocator<T> {
 	void deallocate(T* p, std::size_t n) {
 		std::free(p);
 	}
+
+	template<typename U>
+	struct rebind { typedef malloc_allocator_t<U> other; };
 };
 
 std::unordered_set<malloc_struct, malloc_hash, std::equal_to<malloc_struct>,malloc_allocator_t<malloc_struct>> heap_entry_set;
@@ -64,7 +73,7 @@ void* operator_new(size_t size, malloc_struct& entry) {
 		throw std::bad_alloc();
 	}
 	entry.m_paddr = p;
-	heap_entry_set.insert(entry);
+	heap_entry_set.insert(std::forward<decltype(entry)>(entry));
 	return p;
 }
 
@@ -107,5 +116,21 @@ void trace_memory_leaks() {
 		std::cout << entry << std::endl;
 	}
 }
+
+void trace_memory_delete_mismatch() {
+	std::cout << "Memory delete mismatch detected for: " << std::endl;
+	for (auto& entry : memory_alloc_mismatch) {
+		std::cout << entry << std::endl;
+	}
+}
+
+
+struct memory_leak_trace {
+	memory_leak_trace() = default;
+	~memory_leak_trace() {
+		trace_memory_leaks();
+		trace_memory_delete_mismatch();
+	}
+};
 
 #define new new(__FILE__, __LINE__, __FUNCSIG__)
