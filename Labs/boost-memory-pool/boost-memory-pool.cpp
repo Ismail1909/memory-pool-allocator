@@ -8,6 +8,7 @@
 
 #include <boost/pool/simple_segregated_storage.hpp>
 #include <boost/pool/object_pool.hpp>
+#include <boost/pool/singleton_pool.hpp>
 
 // Timer includes
 #include <chrono>
@@ -29,10 +30,23 @@ struct timer
     high_resolution_clock::time_point m_t = high_resolution_clock::now();
 };
 
+// A tag to highlight that singleton_int_pool is a pool that manages int values.
+struct int_pool {};
+
+//<typename Tag, unsigned RequestedSize, typename UserAllocator, typename Mutex, unsigned NextSize, unsigned MaxSize >
+// Tag: represents a unique type identifier for this pool.Thanks to tags, multiple singletons can manage different memory pools,
+//      even if the second template parameter for the size is the same. 
+// RequestedSize: the size of each allocated memory chunck/block.
+// UserAllocator: user defined memory allocator, default = <tt>default_user_allocator_new_delete</tt>.
+// Mutex: The type of mutex used to synchonise access to this pool.
+// NextSize: the number of chunks allocated on first allocation.
+// MaxSize: The max next number of chunks to allocate in case no free chunks in the allocated memory. 
+typedef boost::singleton_pool<int_pool, sizeof(int)> singleton_pool_int;
+
 int main()
 {
 
-    goto OBJECT_POOL;
+    goto SINGELTON_POOL;
 
     // Dynamic memory allocation on heap has some problems and limits:
     // 1- Memory allocated on heap often requires some header data to store info for the memory allocated
@@ -177,6 +191,29 @@ OBJECT_POOL:
     goto END;
 
     /**************************************************************************/
+
+    /********************* Using boost::singleton_pool ***********************/
+
+SINGELTON_POOL:
+    // Singleton Usage is the method where each Pool is an object with static duration; that is, it will not be destroyed until program exit.
+    // Pool objects with Singleton Usage may be shared; thus, Singleton Usage implies thread-safety as well.
+    
+    {
+        // Similar in behavior to object_pool, but like simple_segregation_storage it doesn't manage the type
+        // but only the size of the chunk so it returns 'void*' that should be cast.
+        int* i = reinterpret_cast<int*>(singleton_pool_int::malloc());
+        *i = 2;
+
+        // same as malloc() but allocates enough contigous chunks to cover n* sizeof(chunk) bytes of memory.
+        int* j = static_cast<int*>(singleton_pool_int::ordered_malloc(10));
+        j[9] = 2;
+
+        // releases all memory blocks that aren’t used at the moment.
+        singleton_pool_int::release_memory();
+
+        // releases all memory blocks – including those currently being used.
+        singleton_pool_int::purge_memory();
+    }
 
 END: 
     return 0;
