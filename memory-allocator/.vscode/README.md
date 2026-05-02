@@ -99,3 +99,8 @@ The function `alloc` takes in the number of bytes requested and returns a pointe
 6. If not it checks if the header was set before, checking if it is still marked as allocated & the number of words allocated, If not allocated, that means there is a free block of memory that can be reused, but it checks if the free block is large enough to accommodate the requested number of words. If it's then fill the header and return the pointer to the allocated memory. If not, it returns `NULL`.
 
 7. However if the header was not allocated before meaning(header->word == 0), then it fills the header with the number of words allocated and marks it as allocated, then returns the pointer to the allocated memory.
+
+
+## Free function:
+
+The `destroy` works as the standard `free` function, it takes in a pointer to the memory to be freed and returns nothing. It checks if the pointer is `NULL`, if it is, it does nothing. Otherwise, it gets the header and marks the block as free by setting the `m_isAllocated` flag to `false` & wipes the memory block. but if the isAllocated flag is already false, that means the block is already free and it triggers abort to prevent double free.

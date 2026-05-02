@@ -56,16 +56,60 @@ void* alloc(uint32 bytes) {
     return allocated;
 }
 
+void zero(word* addr, word words) {
+    for(word i = 0 ; i < words ; ++i) {
+        addr[i] = 0;
+    }
+}
+
+void destroy(void* address) {
+    if(!address) {
+        return; // If NULL, do nothing.
+    }
+
+    // Get header of that memory block
+    header* hdr = (header*)(((word*) address) - 1);
+
+    if(!hdr->m_isAllocated) { // Not allocated, double free -> abort
+        printf("Double free error");
+        abort();
+    }
+
+    // Zero the used memory.
+    zero((word*)address, hdr->m_word);
+
+    // Mark header as deallocated
+    hdr->m_isAllocated = false;
+
+    return;
+}
+
 int main() {
-    char* x = (char*)alloc(8);
+    char* x = (char*)alloc(12);
     if(x) {
         *x = 'O';
+        *((uint8*)x + 10) = 4;
         printf("X: %c \n", *x);
         printf("X Addr: %p \n", x);
         printf("Mem start: %p \n", memspace);
     }
     else {
         printf("Failed to allocate mem\n");
+    }
+
+    destroy(x);
+    x = NULL; // to prevent use of freed address.
+    //destroy(x); double free triggers abort as per standard.
+
+    char* y = (char*)alloc(8); // should be able to allocate again.
+    if(!y) {
+        printf("Failed to allocate Y \n");
+    }
+    else {
+        *y = 'C';
+        printf("Y: %c \n", *y);
+        printf("Y Addr: %p \n", y);
+        printf("Mem start: %p \n", memspace);
     }
     return 0;
 }

@@ -1,6 +1,7 @@
 #ifndef ALLOC_H
 #define ALLOC_H
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -31,6 +32,7 @@ struct packed s_header {
 typedef struct s_header header;
 
 void* alloc(uint32 bytes);
+void destroy(void* address);
 
 
 #endif // ALLOC_H
