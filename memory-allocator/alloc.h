@@ -2,10 +2,16 @@
 #define ALLOC_H
 
 #include <stdio.h>
+#include <errno.h>
 
 // attribute defs
 #define packed __attribute__((__packed__)) // prevent internal padding between struct members.
 #define unused __attribute__((__unused__))
+
+#define ErrNoMem 12
+#define ErrNoVal 13
+
+#define reterrPtr(x) { errno = x; return 0;}
 
 // int typedefs
 typedef unsigned char uint8;
@@ -22,6 +28,9 @@ struct packed s_header {
     bool m_isAllocated:1;
     bool unused m_reserved:1;
 };
+typedef struct s_header header;
+
+void* alloc(uint32 bytes);
 
 
 #endif // ALLOC_H

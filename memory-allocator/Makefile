@@ -1,5 +1,7 @@
 CC= g++
-CFLAGS= -c -Wall -O2 -m32 -g
+DEBUG = -g -Og
+RELEASE = -O2
+CFLAGS= -c -Wall -m32 $(DEBUG)
 LINKER= g++
 LINK= -m32
 

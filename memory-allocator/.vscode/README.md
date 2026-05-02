@@ -79,3 +79,23 @@
     ```cpp
     extern void* memspace;
     ```
+
+## Initial Allocation function:
+
+The logic for allocating memory goes as follows:
+
+The function `alloc` takes in the number of bytes requested and returns a pointer to the allocated memory or `NULL` if the allocation fails and sets `errno` to `ENOMEM`.
+
+1. First check if the requested size is zero, if it is we set `errno` to `EINVAL` and return `NULL`.
+
+2. Calculate the number of words needed to fulfill the request. We round up the requested size to the nearest word boundary.
+
+3. Check if the requested number of words exceeds the total number of words available in the heap. If it does, we set `errno` to `ENOMEM` and return `NULL`.
+
+4. Create a header pointer to the start of the heap and pass it down to `mkAlloc` along with the number of words needed.
+
+5. The `mkAlloc` does the actual allocation if available, it checks if the no of words requested exceeds the available memory and if so return `NULL`.
+
+6. If not it checks if the header was set before, checking if it is still marked as allocated & the number of words allocated, If not allocated, that means there is a free block of memory that can be reused, but it checks if the free block is large enough to accommodate the requested number of words. If it's then fill the header and return the pointer to the allocated memory. If not, it returns `NULL`.
+
+7. However if the header was not allocated before meaning(header->word == 0), then it fills the header with the number of words allocated and marks it as allocated, then returns the pointer to the allocated memory.
