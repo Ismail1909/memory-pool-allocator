@@ -28,6 +28,33 @@ void* mkalloc(header* hdr, word words) {
     return (word*)hdr + 1; // return memory block address.
 }
 
+header* findBlock(header* hdr, word words) {
+    bool found = false;
+    word* LastAddr = ((word*)memspace) + MAXWORDS;
+    header* retHdr = hdr;
+    while(!found) {
+        if(!retHdr->m_isAllocated) {
+            if(!retHdr->m_word) { // empty section
+                found = true;
+                break;
+            }
+
+            if(((word*)(retHdr) + words) <= ((word*)(retHdr) + retHdr->m_word)) {
+                found = true;
+                break;
+            }
+        }
+        
+        word* next = (word*)(retHdr) + retHdr->m_word + 1;
+        if(next > LastAddr - 1) {
+            reterrPtr(ErrNoMem);
+        }
+        retHdr = (header*)next;
+    }
+
+    return retHdr;
+}
+
 void* alloc(uint32 bytes) {
     word words = 0;
     void* mem = memspace;
@@ -46,6 +73,13 @@ void* alloc(uint32 bytes) {
 
     // set header to first location
     hdr = (header*)mem;
+    if(hdr->m_word) {
+        // Find available block.
+        hdr = findBlock(hdr, words);
+        if(!hdr) {
+            reterrPtr(errno);
+        }
+    }
 
     // make allocation in words
     void* allocated = mkalloc(hdr, words);
@@ -76,7 +110,7 @@ void destroy(void* address) {
     }
 
     // Zero the used memory.
-    zero((word*)address, hdr->m_word);
+    //zero((word*)address, hdr->m_word); // This function has logic error, it zeros beyond the allocated address
 
     // Mark header as deallocated
     hdr->m_isAllocated = false;
@@ -84,32 +118,41 @@ void destroy(void* address) {
     return;
 }
 
-int main() {
-    char* x = (char*)alloc(12);
-    if(x) {
-        *x = 'O';
-        *((uint8*)x + 10) = 4;
-        printf("X: %c \n", *x);
-        printf("X Addr: %p \n", x);
-        printf("Mem start: %p \n", memspace);
+void debug_print(uint32* x) {
+    if(!x) {
+        printf("Failed to allocate Y \n");
     }
     else {
-        printf("Failed to allocate mem\n");
+        printf("X: %d \n", *x);
+        printf("X Addr: %p \n", x);
     }
+}
+
+int main() {
+    printf("Mem start: %p \n", memspace);
+
+    uint32* x = (uint32*)alloc(12);
+    debug_print(x);
+
+    uint32* z = (uint32*)alloc(12);
+    *z = 5;
+    debug_print(z);
 
     destroy(x);
     x = NULL; // to prevent use of freed address.
     //destroy(x); double free triggers abort as per standard.
 
-    char* y = (char*)alloc(8); // should be able to allocate again.
-    if(!y) {
-        printf("Failed to allocate Y \n");
-    }
-    else {
-        *y = 'C';
-        printf("Y: %c \n", *y);
-        printf("Y Addr: %p \n", y);
-        printf("Mem start: %p \n", memspace);
-    }
+    uint32* y = (uint32*)alloc(8); // should be able to allocate again.
+    debug_print(y);
+
+    uint32* w = (uint32*)alloc(8); // findBlock bug, w lies between y & z but it has not enough space causing overlap with z.
+                                   // yh | y | y | wh | w zh | w z | z | z -> OVERLAP!
+    debug_print(w);
+    
+    destroy(z);
+
+    uint32* p = (uint32*)alloc(20);
+    debug_print(p);
+
     return 0;
 }
