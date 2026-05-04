@@ -104,3 +104,26 @@ The function `alloc` takes in the number of bytes requested and returns a pointe
 ## Free function:
 
 The `destroy` works as the standard `free` function, it takes in a pointer to the memory to be freed and returns nothing. It checks if the pointer is `NULL`, if it is, it does nothing. Otherwise, it gets the header and marks the block as free by setting the `m_isAllocated` flag to `false` & wipes the memory block. but if the isAllocated flag is already false, that means the block is already free and it triggers abort to prevent double free.
+
+## Support multiple allocation with find next free block:
+
+To support multiple allocations, we need to find the next free block of memory after the current allocation. This is done by iterating through the heap and checking the headers of each block until we find a free block that is large enough to accommodate the requested number of words.
+
+The logic goes as follows: we check the start position of the heap and check the header, if if no of words is zero, that means the block is unallocated and we can use it, otherwise, it means the block is either allocated or marked as free, if `isAllocated` is false, that means the block is free and we can reuse it if it is large enough to accomodate the requested number of words, if not then we move to the next block by adding the size of the current block (header + allocated words) to the current position and repeat the process until we find a suitable block or reach the end of the heap.
+
+However the logic has a flaw, if some blocks are freed & reused, they can overlap with next allocated blocks as this case:
+
+```cpp
+    uint32* x = (uint32*)alloc(12);
+
+    uint32* z = (uint32*)alloc(12);
+
+    destroy(x);
+    x = NULL; // to prevent use of freed address.
+
+    uint32* y = (uint32*)alloc(8); // should be able to allocate in place of x.
+
+    uint32* w = (uint32*)alloc(8); // findBlock bug, w lies between y & z but it has not enough space causing overlap with z.
+                                   // yh | y | y | wh | w zh | w z | z | z -> OVERLAP!
+
+```
