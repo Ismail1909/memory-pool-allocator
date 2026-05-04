@@ -33,12 +33,22 @@ header* findBlock(header* hdr, word words) {
     header* retHdr = hdr;
 
     while((word*)retHdr < LastAddr - 1) {
-        if(!retHdr->m_word) break; // unallocated block
-
-        if(!retHdr->m_isAllocated) { // deallocated block
+        if(!retHdr->m_isAllocated) { // in use or fragmented.
+            if(!retHdr->m_word) break; // unallocated block
+            
             if(words <= retHdr->m_word) {
-                break;
-            }
+                if(words == retHdr->m_word) break; // no fragments.
+
+                // Mark the rest of the free fragments as deallocated so it can detected later.
+                word* freeHdrAddr = (word*)retHdr + words + 1;
+                header* freeHdr = (header*)freeHdrAddr;
+                freeHdr->m_word = retHdr->m_word - words - 1;
+                // If n of words is zero, that means the free space is only enough for header & so it's fragmented and can't be used.
+                // So we set it to true to prevent from being selected for allocation. ( TODO: do better logic??).
+                freeHdr->m_isAllocated = (!freeHdr->m_word) ? true : false;
+                
+                break;        
+            }    
         }
 
         // Go to next possible header.
@@ -108,7 +118,7 @@ void destroy(void* address) {
     }
 
     // Zero the used memory.
-    //zero((word*)address, hdr->m_word); // This function has logic error, it zeros beyond the allocated address
+    zero((word*)address, hdr->m_word);
 
     // Mark header as deallocated
     hdr->m_isAllocated = false;
@@ -130,6 +140,7 @@ int main() {
     printf("Mem start: %p \n", memspace);
 
     uint32* x = (uint32*)alloc(12);
+    x[0] = 4;
     debug_print(x);
 
     uint32* z = (uint32*)alloc(12);
@@ -152,25 +163,8 @@ int main() {
     uint32* p = (uint32*)alloc(20);
     debug_print(p);
 
-    {
-        uint32* x = (uint32*)alloc(12);
-        debug_print(x);
-    }
-
-    {
-        uint32* x = (uint32*)alloc(12);
-        debug_print(x);
-    }
-
-    {
-        uint32* x = (uint32*)alloc(12);
-        debug_print(x);
-    }
-
-    {
-        uint32* x = (uint32*)alloc(12);
-        debug_print(x);
-    }
+    uint32* j = (uint32*)alloc(12);
+    debug_print(j);
 
     return 0;
 }

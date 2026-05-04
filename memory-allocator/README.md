@@ -127,3 +127,9 @@ However the logic has a flaw, if some blocks are freed & reused, they can overla
                                    // yh | y | y | wh | w zh | w z | z | z -> OVERLAP!
 
 ```
+
+## Fixing the overlapping issue:
+
+The solution is to calculate the remaining size after reallocating the block with size less than the original size, then use it to create a new header for the remaining free block and mark it as dellocated by (setting `isAllocated` to false & `word` to the remaining size), this way we can reuse the remaining free block for future allocations without causing overlap with the next allocated block.
+
+A special case: in case the remaining size is 1, that's enough for the header only, so we mark it as allocated and then it's considered fragmented memory that cannot be used for future allocations, but it won't cause any issues as it is marked as allocated and won't be reused.
