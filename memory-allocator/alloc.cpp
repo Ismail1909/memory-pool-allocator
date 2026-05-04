@@ -29,27 +29,25 @@ void* mkalloc(header* hdr, word words) {
 }
 
 header* findBlock(header* hdr, word words) {
-    bool found = false;
     word* LastAddr = ((word*)memspace) + MAXWORDS;
     header* retHdr = hdr;
-    while(!found) {
-        if(!retHdr->m_isAllocated) {
-            if(!retHdr->m_word) { // empty section
-                found = true;
-                break;
-            }
 
-            if(((word*)(retHdr) + words) <= ((word*)(retHdr) + retHdr->m_word)) {
-                found = true;
+    while((word*)retHdr < LastAddr - 1) {
+        if(!retHdr->m_word) break; // unallocated block
+
+        if(!retHdr->m_isAllocated) { // deallocated block
+            if(words <= retHdr->m_word) {
                 break;
             }
         }
-        
-        word* next = (word*)(retHdr) + retHdr->m_word + 1;
-        if(next > LastAddr - 1) {
-            reterrPtr(ErrNoMem);
-        }
+
+        // Go to next possible header.
+        word* next = (word*)retHdr + retHdr->m_word + 1;
         retHdr = (header*)next;
+    }
+
+    if((word*)retHdr > LastAddr - 1) {
+        reterrPtr(ErrNoMem);
     }
 
     return retHdr;
@@ -153,6 +151,26 @@ int main() {
 
     uint32* p = (uint32*)alloc(20);
     debug_print(p);
+
+    {
+        uint32* x = (uint32*)alloc(12);
+        debug_print(x);
+    }
+
+    {
+        uint32* x = (uint32*)alloc(12);
+        debug_print(x);
+    }
+
+    {
+        uint32* x = (uint32*)alloc(12);
+        debug_print(x);
+    }
+
+    {
+        uint32* x = (uint32*)alloc(12);
+        debug_print(x);
+    }
 
     return 0;
 }
