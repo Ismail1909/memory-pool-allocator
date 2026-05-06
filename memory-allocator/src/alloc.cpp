@@ -1,5 +1,32 @@
 #include "alloc.h"
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
+// attribute defs
+#define packed __attribute__((__packed__)) // prevent internal padding between struct members.
+#define unused __attribute__((__unused__))
+
+#define reterrPtr(x) { errno = x; return 0;}
+
+// int typedefs
+typedef unsigned char uint8;
+typedef unsigned short int uint16;
+typedef unsigned int uint32;
+typedef unsigned long int uint64;
+
+// project types
+typedef void heap;
+typedef uint32 word;
+
+struct packed s_header {
+    word m_word:30; // number of words allocated
+    bool m_isAllocated:1;
+    bool unused m_reserved:1;
+};
+typedef struct s_header header;
+
 extern heap* memspace;
 
 inline constexpr uint32 MAXWORDS = (1024*1024*1024) / 4;
@@ -45,7 +72,7 @@ header* findBlock(header* hdr, word words) {
                 freeHdr->m_word = retHdr->m_word - words - 1;
                 // If n of words is zero, that means the free space is only enough for header & so it's fragmented and can't be used.
                 // So we set it to true to prevent from being selected for allocation. ( TODO: do better logic??).
-                freeHdr->m_isAllocated = (!freeHdr->m_word) ? true : false;
+                freeHdr->m_isAllocated = (!freeHdr->m_word) ? true : false;        
                 
                 break;        
             }    
@@ -126,16 +153,7 @@ void destroy(void* address) {
     return;
 }
 
-void debug_print(uint32* x) {
-    if(!x) {
-        printf("Failed to allocate Y \n");
-    }
-    else {
-        printf("X: %d \n", *x);
-        printf("X Addr: %p \n", x);
-    }
-}
-
+/*
 int main() {
     printf("Mem start: %p \n", memspace);
 
@@ -168,3 +186,4 @@ int main() {
 
     return 0;
 }
+*/

@@ -133,3 +133,99 @@ However the logic has a flaw, if some blocks are freed & reused, they can overla
 The solution is to calculate the remaining size after reallocating the block with size less than the original size, then use it to create a new header for the remaining free block and mark it as dellocated by (setting `isAllocated` to false & `word` to the remaining size), this way we can reuse the remaining free block for future allocations without causing overlap with the next allocated block.
 
 A special case: in case the remaining size is 1, that's enough for the header only, so we mark it as allocated and then it's considered fragmented memory that cannot be used for future allocations, but it won't cause any issues as it is marked as allocated and won't be reused.
+
+## Restructing the build system to CMake.
+
+- Setup languages as follows
+
+    ```cmake
+    # Setup NASM target architecture.
+    if(APPLE)
+        set(CMAKE_ASM_NASM_OBJECT_FORMAT macho32)
+    elseif(UNIX)
+        set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
+    elseif(WIN32)
+        set(CMAKE_ASM_NASM_OBJECT_FORMAT win32)
+    endif()
+
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    # Enable assembly with NASM
+    enable_language(ASM_NASM)
+    project(allocator VERSION 0.0.1 LANGUAGES CXX ASM_NASM)
+    ```
+
+- Setup C++ sources compiliation
+
+    ```cmake
+    # Set CXX Compiler options
+    set(CXXFLAGS -Wall -m32)
+
+    # Build cpp objects
+    add_library(allocator_cpp OBJECT src/alloc.cpp)
+    target_compile_options(allocator_cpp PRIVATE ${CXXFLAGS})
+    ```
+
+- Setup ASM sources compiliation
+
+    ```cmake
+    # Setup assembly files with ASM_NASM
+    set(NASM_SOURCES src/heap.asm)
+    set_source_files_properties(${NASM_SOURCES} ASM_NASM)
+
+    # Build asm objects
+    add_library(allocator_asm OBJECT ${NASM_SOURCES})
+    ```
+
+- link generated objects into a static library that can be used with other architectures.
+    ```cmake
+    add_library(${PROJECT_NAME} STATIC
+                $<TARGET_OBJECTS:allocator_cpp>
+                $<TARGET_OBJECTS:allocator_asm>
+    )
+    ```
+
+- Build with CMAKE
+    - Generate make build system
+        ```bash
+           mkdir build
+           cd build
+           cmake .. -G "Unix Makefiles" 
+        ```
+
+    - Build
+        ```bash
+         make
+        ```
+
+- Use the generated static lib with main to build test program.
+
+    ```bash
+        # Build test program and link it with the generated liballocator.a
+        g++ main.cpp -m32 -L./build -lallocator -o test
+
+        # Run
+        ./test
+    ```
+
+## Next steps:
+
+- Add Google Test to define some tests for allocator module
+
+- Build for both unix 32 & 64 bit arch.
+
+- Make the total memory arena for allocator dynamic.
+    ```cpp
+    // Example
+    // make system allocate a block of memory on heap.
+    void* addr = VirtualAlloc(1024);
+
+    // Pass memory address to our allocator.
+    Allocator memAlloc{addr};
+
+    // Use our allocator.
+    int x = (int*)memAlloc.alloc(sizeof(int));
+
+    memAlloc.destroy(x);
+    ```
