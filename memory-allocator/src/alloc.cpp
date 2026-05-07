@@ -131,26 +131,29 @@ void zero(word* addr, word words) {
     }
 }
 
-void destroy(void* address) {
-    if(!address) {
-        return; // If NULL, do nothing.
+bool destroy(void** address) {
+    void* memAddress = *address;
+    if(!memAddress) {
+        return false; // If NULL, do nothing.
     }
 
     // Get header of that memory block
-    header* hdr = (header*)(((word*) address) - 1);
+    header* hdr = (header*)(((word*) memAddress) - 1);
 
-    if(!hdr->m_isAllocated) { // Not allocated, double free -> abort
-        printf("Double free error");
-        abort();
+    if(!hdr->m_isAllocated) { // Not allocated, just return false
+        return false;
     }
 
     // Zero the used memory.
-    zero((word*)address, hdr->m_word);
+    zero((word*)memAddress, hdr->m_word);
 
     // Mark header as deallocated
     hdr->m_isAllocated = false;
 
-    return;
+    // Set provided address to NULL to prevent reuse.
+    *address = NULL;
+
+    return true;
 }
 
 /*

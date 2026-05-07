@@ -6,7 +6,7 @@
 #define ErrNoVal 13
 
 void* alloc(unsigned int bytes);
-void destroy(void* address);
+bool destroy(void** address);
 
 
 #endif // ALLOC_H
