@@ -12,16 +12,24 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set CXX Compiler options, it is better to use the CMAKE flag in this case to unify the arch with
+# external deps that are built like gtest.
+set(CMAKE_CXX_FLAGS -m32)
+
 # Enable assembly with NASM
 enable_language(ASM_NASM)
 project(allocator VERSION 0.0.1 LANGUAGES CXX ASM_NASM)
 
-# Set CXX Compiler options
-set(CXXFLAGS -Wall -m32)
+# Fetch GoogleTest
+include(FetchContent)
+FetchContent_Declare( # The hash represents a commit, update it regularly
+  googletest
+  URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
+)
+FetchContent_MakeAvailable(googletest)
 
 # Build cpp objects
 add_library(allocator_cpp OBJECT src/alloc.cpp)
-target_compile_options(allocator_cpp PRIVATE ${CXXFLAGS})
 
 # Setup assembly files with ASM_NASM
 set(NASM_SOURCES src/heap.asm)
@@ -35,6 +43,26 @@ add_library(${PROJECT_NAME} STATIC
             $<TARGET_OBJECTS:allocator_cpp>
             $<TARGET_OBJECTS:allocator_asm>
 )
+
+# Enable Google Test
+enable_testing()
+
+# Build test binary & link it to gtest & the allocator library
+add_executable(
+  allocator_tests
+  tests/allocator_tests.cpp
+)
+target_include_directories(allocator_tests PUBLIC ${CMAKE_SOURCE_DIR}/src) # to include alloc header
+
+target_link_libraries(
+  allocator_tests
+  GTest::gtest_main
+  allocator
+)
+
+# Add the test binary to gtest.
+include(GoogleTest)
+gtest_discover_tests(allocator_tests)
 
 
 

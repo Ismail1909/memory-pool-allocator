@@ -209,6 +209,75 @@ A special case: in case the remaining size is 1, that's enough for the header on
         ./test
     ```
 
+## Add Google Test to build system
+
+- Fetch Google test CMake Package
+
+    ```cmake
+    # Fetch GoogleTest
+    include(FetchContent)
+    FetchContent_Declare( # The hash represents a commit, update it regularly
+    googletest
+    URL https://github.com/google/googletest/archive/52eb8108c5bdec04579160ae17225d66034bd723.zip
+    )
+    FetchContent_MakeAvailable(googletest)
+    ```
+
+- Write the tests, Example:
+
+    ```cpp
+    //allocator_tests.cpp
+    #include <gtest/gtest.h>
+    #include"alloc.h"
+
+    // Test alloc functions works.
+    TEST(AllocatorTest, BasicTest) {
+    void* x = alloc(sizeof(int));
+    EXPECT_NE(x,nullptr);
+    }
+    ```
+
+    >Google test case macro reference: https://google.github.io/googletest/primer.html
+
+- Add it as an executable & link it to gtest & the allocator library.
+
+    ```cmake
+    # Enable Google Test
+    enable_testing()
+
+    # Build test binary & link it to gtest & the allocator library
+    add_executable(
+    allocator_tests
+    tests/allocator_tests.cpp
+    )
+    target_include_directories(allocator_tests PUBLIC ${CMAKE_SOURCE_DIR}/src) # to include alloc header
+
+    target_link_libraries(
+    allocator_tests
+    GTest::gtest_main
+    allocator
+    )
+
+    # Add the test binary to gtest.
+    include(GoogleTest)
+    gtest_discover_tests(allocator_tests)
+    ```
+
+- Run CMake then build and after build, run the tests in the build directory using this:
+
+    ```bash
+    ctest
+
+    # Output
+    Test project /mnt/d/Samples/memory-pool-allocator/memory-allocator/build
+        Start 1: AllocatorTest.BasicTest
+    1/1 Test #1: AllocatorTest.BasicTest ..........   Passed    0.02 sec
+
+    100% tests passed, 0 tests failed out of 1
+
+    Total Test time (real) =   0.05 sec
+    ```
+
 ## Next steps:
 
 - Add Google Test to define some tests for allocator module
