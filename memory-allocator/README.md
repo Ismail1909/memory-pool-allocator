@@ -280,7 +280,11 @@ A special case: in case the remaining size is 1, that's enough for the header on
 
 ## Next steps:
 
-- Add Google Test to define some tests for allocator module
+- Enhance API/error handling.
+
+- Add Fragmentation tests. Currently there is no global coalescing, so fragmentation is a limitation
+
+- Consider make the lib thread-safe.
 
 - Build for both unix 32 & 64 bit arch.
 
